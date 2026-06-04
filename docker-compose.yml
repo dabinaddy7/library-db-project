@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: library_postgres
+    environment:
+      POSTGRES_USER: dweb
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: library_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_library_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_library_data:

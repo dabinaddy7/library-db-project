@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>도서 대여 관리 시스템</title>
+    <style>
+        body { font-family: sans-serif; max-width: 850px; margin: 40px auto; padding: 20px; background: #f9f9f9; }
+        .section { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #ddd; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; vertical-align: middle; }
+        th { background: #f2f2f2; }
+        button { padding: 6px 12px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 4px; margin-right: 4px; }
+        button.danger { background: #dc3545; }
+        button.success { background: #28a745; }
+        .form-input, select { padding: 6px; border: 1px solid #ccc; border-radius: 4px; margin-right: 10px; }
+    </style>
+</head>
+<body>
+
+    <h2>📚 도서 대여 관리 시스템 </h2>
+    <hr>
+
+    <div class="section">
+        <h3>➕ 신규 회원 등록</h3>
+        <input type="text" id="reg-name" class="form-input" placeholder="이름 (예: 이인천)">
+        <input type="email" id="reg-email" class="form-input" placeholder="이메일 (예: inu@test.com)">
+        <button class="success" onclick="registerUser()">회원 등록</button>
+    </div>
+
+    <div class="section">
+        <h3>👥 1. 회원 목록 및 대여 현황</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>회원 ID</th>
+                    <th>이름</th>
+                    <th>이메일</th>
+                    <th>대여 권수</th>
+                    <th>관리</th>
+                </tr>
+            </thead>
+            <tbody id="user-table-body"></tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h3>📖 2. 보유 도서 목록 및 대여 신청</h3>
+        <div style="background: #e9ecef; padding: 10px; border-radius: 4px; margin-bottom: 10px;">
+            <strong>👤 대여할 회원 선택: </strong>
+            <select id="user-select">
+                <option value="">회원을 선택하세요</option>
+                </select>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>도서 ID</th>
+                    <th>도서 제목</th>
+                    <th>저자</th>
+                    <th>남은 재고</th>
+                    <th>대여하기</th>
+                </tr>
+            </thead>
+            <tbody id="book-table-body"></tbody>
+        </table>
+    </div>
+
+    <script>
+        window.onload = () => {
+            loadUserData();
+            loadBookData();
+        };
+
+        async function loadUserData() {
+            const res = await fetch('/api/users-rentals');
+            const users = await res.json();
+            
+            const tbody = document.getElementById('user-table-body');
+            const userSelect = document.getElementById('user-select');
+            
+            tbody.innerHTML = '';
+            // 드롭다운 초기화
+            userSelect.innerHTML = '<option value="">회원을 선택하세요</option>'; 
+
+            users.forEach(user => {
+                // 테이블에 회원 추가
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${user.user_id}</td>
+                        <td><strong>${user.name}</strong></td>
+                        <td>${user.email}</td>
+                        <td><span style="color:blue; font-weight:bold;">${user.rental_count}권</span></td>
+                        <td>
+                            <button class="success" onclick="returnBookWindow(${user.user_id})">도서 반납</button>
+                            <button class="danger" onclick="deleteUser(${user.user_id})">회원 탈퇴</button>
+                        </td>
+                    </tr>
+                `;
+                // 대여 박스 드롭다운에 회원 추가
+                userSelect.innerHTML += `<option value="${user.user_id}">[ID: ${user.user_id}] ${user.name}</option>`;
+            });
+        }
+
+        async function loadBookData() {
+            const res = await fetch('/api/books');
+            const books = await res.json();
+            const tbody = document.getElementById('book-table-body');
+            tbody.innerHTML = '';
+
+            books.forEach(book => {
+                const isOutOfStock = book.stock <= 0;
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${book.book_id}</td>
+                        <td>${book.title}</td>
+                        <td>${book.author}</td>
+                        <td>${isOutOfStock ? '<span style="color:#e67e22; font-weight:bold;">대여 중 (재고 없음)</span>' : book.stock + '권'}</td>
+                        <td>
+                            <button onclick="rentBook(${book.book_id})" ${isOutOfStock ? 'disabled style="background:#ccc;"' : ''}>
+                                대여 신청
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function registerUser() {
+            const name = document.getElementById('reg-name').value;
+            const email = document.getElementById('reg-email').value;
+            if(!name || !email) return alert("이름과 이메일을 모두 입력하세요.");
+
+            const res = await fetch('/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email })
+            });
+            alert(await res.text());
+            document.getElementById('reg-name').value = '';
+            document.getElementById('reg-email').value = '';
+            loadUserData();
+        }
+
+        // 🚀 변경된 대여 방식: 알림창 대신 셀렉트 박스에서 읽어옴
+        async function rentBook(bookId) {
+            const userId = document.getElementById('user-select').value;
+            if (!userId) return alert("상단에서 '대여할 회원'을 먼저 선택해 주세요!");
+
+            const res = await fetch('/api/rent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_id: userId, book_id: bookId })
+            });
+            alert(await res.text());
+            loadUserData();
+            loadBookData();
+        }
+
+        async function returnBookWindow(userId) {
+            const res = await fetch(`/api/users/${userId}/rentals`);
+            const rentals = await res.json();
+
+            if (rentals.length === 0) return alert("이 회원은 현재 대여 중인 도서가 없습니다.");
+
+            let message = "현재 대여 중인 도서 목록:\n";
+            rentals.forEach(r => { message += `- 도서ID [ ${r.book_id} ] : ${r.title}\n`; });
+            message += "\n반납할 도서의 [도서ID]를 정확히 입력하세요:";
+
+            const inputBookId = prompt(message);
+            if (!inputBookId) return;
+            
+            const selected = rentals.find(r => r.book_id == parseInt(inputBookId));
+            if (!selected) return alert("해당 회원이 대여한 도서ID가 아닙니다. 다시 확인해 주세요.");
+
+            const returnRes = await fetch('/api/return', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rental_id: selected.rental_id, book_id: selected.book_id })
+            });
+            
+            alert(await returnRes.text());
+            loadUserData();
+            loadBookData();
+        }
+
+        async function deleteUser(userId) {
+            if (!confirm("정말 탈퇴시키겠습니까?")) return;
+            const res = await fetch(`/api/users/${userId}`, { method: 'DELETE' });
+            
+            // 에러가 났을 때(책 미반납 상태)와 성공했을 때를 구분해서 알림창 띄우기
+            if (!res.ok) {
+                alert(await res.text()); // 에러 메시지 출력
+            } else {
+                alert(await res.text()); // 성공 메시지 출력
+                loadUserData();
+                loadBookData();
+            }
+        }
+    </script>
+</body>
+</html>

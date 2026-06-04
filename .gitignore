@@ -1,0 +1,12 @@
+# Node.js 패키지 제외 (npm install로 언제든 다시 받을 수 있음)
+node_modules/
+
+# macOS 환경 파일 제외 
+.DS_Store 
+
+# 도커 데이터 볼륨 제외 (내 로직 데이터가 꼬이는 걸 방지)
+.postgres_library_data/
+
+# 로그 및 환경 설정 파일 제외 
+*.log 
+.env
