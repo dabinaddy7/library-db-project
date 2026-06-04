@@ -1,0 +1,13 @@
+pgbench (16.13 (Debian 16.13-1.pgdg13+1))
+transaction type: /library_workload.sql
+scaling factor: 1
+query mode: simple
+number of clients: 10
+number of threads: 2
+maximum number of tries: 1
+duration: 20 s
+number of transactions actually processed: 311
+number of failed transactions: 46 (12.885%)
+latency average = 622.752 ms (including failures)
+initial connection time = 9.885 ms
+tps = 13.988686 (without initial connection time)
